@@ -1,0 +1,77 @@
+Salidas reales de Docker: «Analizador de representación de datos»
+Fecha: 18/10/2026. Windows 11 Home (10.0.26300), Docker Desktop con motor 29.8.2 sobre WSL2.
+
+=== docker build -t analizador-datos:1.0 . ===
+2 static files copied to '/app/staticfiles', 2 post-processed.
+naming to docker.io/library/analizador-datos:1.0 done
+
+> docker image ls analizador-datos
+IMAGE                  ID             DISK USAGE   CONTENT SIZE
+analizador-datos:1.0   0185b0a3bc50        242MB         52.3MB
+
+=== docker run -d --name analizador-datos -p 8000:8000 --memory=256m --cpus=1 analizador-datos:1.0 ===
+
+> docker inspect analizador-datos --format "{{.HostConfig.Memory}} {{.HostConfig.NanoCpus}}"
+268435456 1000000000
+
+> docker exec analizador-datos id
+uid=10001(app) gid=10001(app) groups=10001(app)
+
+> docker exec analizador-datos cat /sys/fs/cgroup/memory.max /sys/fs/cgroup/cpu.max /sys/fs/cgroup/memory.swap.max
+268435456
+100000 100000
+268435456          <- con solo --memory, Docker permite otros 256 MiB de swap
+
+> docker logs analizador-datos
+[INFO] Starting gunicorn 26.2.0
+[INFO] Listening at: http://0.0.0.0:8000 (1)
+[INFO] Using worker: sync
+[INFO] Booting worker with pid: 7
+[INFO] Booting worker with pid: 8
+
+> docker stats --no-stream
+CONTAINER ID   NAME               CPU %     MEM USAGE / LIMIT   MEM %     NET I/O           BLOCK I/O   PIDS
+d725bf3a5baf   analizador-datos   17.26%    76.7MiB / 256MiB    29.96%    2.91kB / 18.6kB   0B / 0B     3
+
+=== docker compose up --build -d ===
+
+> docker compose ps
+NAME               IMAGE                  COMMAND                  SERVICE   CREATED         STATUS                   PORTS
+analizador-datos   analizador-datos:1.0   "gunicorn analizador…"   web       7 seconds ago   Up 6 seconds (healthy)   0.0.0.0:8000->8000/tcp, [::]:8000->8000/tcp
+
+> docker inspect analizador-datos --format "{{.HostConfig.Memory}} {{.HostConfig.MemorySwap}} {{.HostConfig.NanoCpus}}"
+268435456 268435456 1000000000
+
+> docker compose exec web cat /sys/fs/cgroup/memory.max /sys/fs/cgroup/cpu.max /sys/fs/cgroup/memory.swap.max
+268435456
+100000 100000
+0                  <- memswap_limit = mem_limit: sin swap adicional
+
+> docker compose exec web python --version
+Python 3.12.15
+
+> docker compose exec web python manage.py test
+Found 38 test(s).
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+......................................
+----------------------------------------------------------------------
+Ran 38 tests in 0.041s
+
+OK
+Destroying test database for alias 'default'...
+
+> docker stats --no-stream
+CONTAINER ID   NAME               CPU %     MEM USAGE / LIMIT   MEM %     NET I/O           BLOCK I/O   PIDS
+0ec7277bef81   analizador-datos   0.01%     78.03MiB / 256MiB   30.48%    4.05kB / 25.7kB   0B / 0B     3
+
+=== Kernel compartido ===
+> docker compose exec web uname -r
+6.18.54.1-microsoft-standard-WSL2
+> docker run --rm python:3.12-slim uname -r
+6.18.54.1-microsoft-standard-WSL2
+> wsl -d docker-desktop uname -r
+6.18.54.1-microsoft-standard-WSL2
+
+=== Pie de página servido por el contenedor (GET /?numero=256&base=10) ===
+Python 3.12.15 · Django 5.2.18 · Servidor: gunicorn/26.2.0 · Equipo: db28267162ad (contenedor Docker)

@@ -200,7 +200,7 @@ Ran 38 tests in 0.055s
 OK
 ```
 
-Las pruebas también se pueden ejecutar dentro del contenedor (ver la sección siguiente).
+Dentro del contenedor, con Python 3.12.15, también pasan las 38: `docker compose exec web python manage.py test` (ver la sección 6).
 
 ## 5. Docker y Docker Compose
 
@@ -214,7 +214,8 @@ El `Dockerfile`:
 - instala primero las dependencias, para reutilizar esa capa mientras `requirements.txt` no cambie;
 - ejecuta `collectstatic` para que WhiteNoise sirva el CSS;
 - crea el usuario `app` (UID 10001) y ejecuta la app con él, **no como root**; el código pertenece a root, así que el proceso puede leerlo pero no modificarlo;
-- arranca gunicorn en el puerto 8000 con 2 procesos de trabajo (`WEB_CONCURRENCY=2`);
+- arranca gunicorn en el puerto 8000 con 2 procesos de trabajo (`WEB_CONCURRENCY=2`) y sin su socket de control (`--no-control-socket`), que la app no usa y que necesitaría un directorio personal;
+- ocupa 242 MB en disco (52 MB comprimida);
 - define un `HEALTHCHECK` que consulta la página principal cada 30 s.
 
 ### Con `docker build` y `docker run`
@@ -269,7 +270,7 @@ Si antes se lanzó el contenedor con `docker run`, bórrelo (`docker rm -f anali
 
 ## 6. Evidencias
 
-> **Estado:** en el equipo donde se preparó el proyecto, Docker Desktop estaba instalado pero el motor no podía arrancar porque WSL no estaba instalado. Por eso la imagen no se construyó allí y las secciones de Docker de abajo quedan pendientes de completar. La app y las 38 pruebas sí se ejecutaron y verificaron en local.
+Las salidas de texto de esta sección son reales. Se obtuvieron el 18/10/2026 en Windows 11 con Docker Desktop (motor 29.8.2, WSL2). La salida completa de cada comando está en [`docs/evidencias/salidas-docker.txt`](docs/evidencias/salidas-docker.txt). Las capturas de pantalla quedan pendientes.
 
 ### Cómo obtener la evidencia de Docker
 
@@ -281,11 +282,9 @@ Si antes se lanzó el contenedor con `docker run`, bórrelo (`docker rm -f anali
    docker stats --no-stream
    ```
 
-   La columna `MEM USAGE / LIMIT` debe terminar en **256MiB**: es el límite del cgroup. La salida tiene este formato (los valores dependen de cada equipo):
+   La columna `MEM USAGE / LIMIT` debe terminar en **256MiB**: es el límite del cgroup.
 
-   ```text
-   CONTAINER ID   NAME               CPU %   MEM USAGE / LIMIT   MEM %   NET I/O   BLOCK I/O   PIDS
-   ```
+   No sirve como evidencia la pantalla *Containers* de Docker Desktop: su «Container memory usage» (por ejemplo `77.54MB / 7.46GB`) compara el uso con toda la RAM de la VM de WSL2, no con el límite del contenedor. Lo mismo ocurre con la CPU: `/ 1600%` corresponde a los 16 núcleos del equipo, mientras que el contenedor solo puede usar 1 (100 %).
 
 4. Para mostrar el límite desde dentro del contenedor (cgroups v2):
 
@@ -298,13 +297,56 @@ Si antes se lanzó el contenedor con `docker run`, bórrelo (`docker rm -f anali
 
 5. Haga una captura de la terminal y guárdela en `docs/evidencias/`.
 
-El pie de cada página muestra la versión de Python, el servidor WSGI y el nombre del equipo. Dentro de Docker aparece `Servidor: gunicorn/…` y, como nombre del equipo, el ID corto del contenedor, el mismo que muestra `docker ps`, seguido de «(contenedor Docker)». Es una prueba visible de que la página la sirve el contenedor.
+El pie de cada página muestra la versión de Python, el servidor WSGI y el nombre del equipo. Dentro de Docker aparece `Servidor: gunicorn/26.2.0` y, como nombre del equipo, el ID corto del contenedor, el mismo que muestra `docker ps`, seguido de «(contenedor Docker)». Es una prueba visible de que la página la sirve el contenedor.
 
-### Salida de `docker stats --no-stream`
+### Salidas obtenidas
+
+Con `docker compose up --build -d`:
 
 ```text
-(Pegue aquí la salida de docker stats --no-stream)
+> docker compose ps
+NAME               IMAGE                  COMMAND                  SERVICE   CREATED         STATUS                   PORTS
+analizador-datos   analizador-datos:1.0   "gunicorn analizador…"   web       7 seconds ago   Up 6 seconds (healthy)   0.0.0.0:8000->8000/tcp, [::]:8000->8000/tcp
+
+> docker stats --no-stream
+CONTAINER ID   NAME               CPU %     MEM USAGE / LIMIT   MEM %     NET I/O           BLOCK I/O   PIDS
+0ec7277bef81   analizador-datos   0.01%     78.03MiB / 256MiB   30.48%    4.05kB / 25.7kB   0B / 0B     3
+
+> docker compose exec web cat /sys/fs/cgroup/memory.max /sys/fs/cgroup/cpu.max /sys/fs/cgroup/memory.swap.max
+268435456
+100000 100000
+0
+
+> docker compose exec web python manage.py test
+Found 38 test(s).
+...
+Ran 38 tests in 0.041s
+
+OK
 ```
+
+Con `docker run … --memory=256m --cpus=1`:
+
+```text
+> docker inspect analizador-datos --format "{{.HostConfig.Memory}} {{.HostConfig.NanoCpus}}"
+268435456 1000000000
+
+> docker exec analizador-datos id
+uid=10001(app) gid=10001(app) groups=10001(app)
+
+> docker stats --no-stream
+CONTAINER ID   NAME               CPU %     MEM USAGE / LIMIT   MEM %     NET I/O           BLOCK I/O   PIDS
+d725bf3a5baf   analizador-datos   17.26%    76.7MiB / 256MiB    29.96%    2.91kB / 18.6kB   0B / 0B     3
+```
+
+Interpretación:
+
+- La app usa unos **77 MiB de los 256 MiB** permitidos (30 %), así que tiene margen.
+- **3 procesos** (`PIDS`): el maestro de gunicorn y sus 2 trabajadores.
+- El CPU del 17 % con `docker run` corresponde al arranque; en reposo baja al 0.01 %.
+- La app corre como el usuario `app` (UID 10001), no como root.
+- Con Compose, `memory.swap.max` es 0 porque `memswap_limit` es igual a `mem_limit`. Con `docker run` y solo `--memory`, vale 268435456: otros 256 MiB de swap.
+- Las 38 pruebas también pasan dentro del contenedor, con Python 3.12.15.
 
 ### Capturas
 
@@ -367,15 +409,22 @@ Un contenedor **no es una máquina virtual**: no tiene kernel propio ni hardware
 - **Namespaces (aislamiento: qué ve el proceso).** PID (dentro, gunicorn ve su propio árbol de procesos), red (interfaz y puertos propios; `-p 8000:8000` conecta el puerto del host con el del contenedor), montaje (su propio sistema de archivos, el de la imagen), UTS (su propio nombre de equipo, el ID del contenedor), IPC y cgroup.
 - **Cgroups (límites: cuánto puede usar).** `--memory=256m` escribe `268435456` en `memory.max`; si los procesos lo superan, el kernel mata al proceso con el *OOM killer* (código de salida 137). `--cpus=1` escribe `100000 100000` en `cpu.max`; si se pasa de esa cuota, el proceso no muere, el planificador lo frena (*throttling*).
 
-Como las llamadas al sistema de los procesos del contenedor las atiende el mismo kernel, arrancar un contenedor tarda milisegundos y no reserva memoria para un sistema operativo invitado. Se puede comprobar con:
+Como las llamadas al sistema de los procesos del contenedor las atiende el mismo kernel, arrancar un contenedor tarda milisegundos y no reserva memoria para un sistema operativo invitado.
 
-```powershell
-docker run --rm python:3.12-slim uname -r
+**En Windows y macOS** no hay kernel Linux, así que Docker Desktop arranca una **máquina virtual Linux ligera**: en Windows, la de **WSL2**, con un kernel Linux mantenido por Microsoft. Todos los contenedores comparten el kernel de esa única VM: no hay una máquina virtual por contenedor.
+
+Comprobación real en el equipo de desarrollo:
+
+```text
+> docker compose exec web uname -r          (el contenedor de la app)
+6.18.54.1-microsoft-standard-WSL2
+> docker run --rm python:3.12-slim uname -r  (otro contenedor, solo la imagen base)
+6.18.54.1-microsoft-standard-WSL2
+> wsl -d docker-desktop uname -r            (la VM de WSL2 de Docker Desktop)
+6.18.54.1-microsoft-standard-WSL2
 ```
 
-Muestra la versión del kernel del host Docker, no una propia de la imagen: `python:3.12-slim` trae las bibliotecas y programas de Debian, pero no un kernel.
-
-**En Windows y macOS** no hay kernel Linux, así que Docker Desktop arranca una **máquina virtual Linux ligera**: en Windows, la de **WSL2**, con un kernel Linux mantenido por Microsoft (por eso `uname -r` muestra algo como `…-microsoft-standard-WSL2`). Todos los contenedores comparten el kernel de esa única VM: no hay una máquina virtual por contenedor.
+Los tres muestran el mismo kernel: el de la VM. La imagen `python:3.12-slim` trae las bibliotecas y programas de Debian, pero no un kernel propio.
 
 ## 9. Guion del video (máximo 2 minutos)
 
