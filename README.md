@@ -8,6 +8,8 @@ Aplicación web hecha con **Python 3.12 y Django** que relaciona tres temas del 
 
 Toda la interfaz, los mensajes de error y esta documentación están en español.
 
+**Video de demostración (máximo 2 minutos):** [ver en Google Drive](https://drive.google.com/file/d/1OqX-Wfhepzw1Wsqf6RQlzwY_TDkvaK8n/view?usp=sharing)
+
 ## Contenido
 
 1. [Estructura del proyecto](#1-estructura-del-proyecto)
@@ -347,6 +349,10 @@ Interpretación:
 - La app corre como el usuario `app` (UID 10001), no como root.
 - Con Compose, `memory.swap.max` es 0 porque `memswap_limit` es igual a `mem_limit`. Con `docker run` y solo `--memory`, vale 268435456: otros 256 MiB de swap.
 - Las 38 pruebas también pasan dentro del contenedor, con Python 3.12.15.
+
+### Video
+
+[Grabación de la demostración en Google Drive](https://drive.google.com/file/d/1OqX-Wfhepzw1Wsqf6RQlzwY_TDkvaK8n/view?usp=sharing). Sigue el guion de la sección 9: conversión válida (`FF` y `256`), error de validación (`12` en base 2), análisis de «Año», pruebas dentro del contenedor y `docker stats` con el límite de 256 MiB.
 
 ### Capturas
 
