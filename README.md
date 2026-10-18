@@ -270,7 +270,7 @@ Si antes se lanzó el contenedor con `docker run`, bórrelo (`docker rm -f anali
 
 ## 6. Evidencias
 
-Las salidas de texto de esta sección son reales. Se obtuvieron el 18/10/2026 en Windows 11 con Docker Desktop (motor 29.8.2, WSL2). La salida completa de cada comando está en [`docs/evidencias/salidas-docker.txt`](docs/evidencias/salidas-docker.txt). Las capturas de pantalla quedan pendientes.
+Las salidas de texto de esta sección son reales. Se obtuvieron el 18/10/2026 en Windows 11 con Docker Desktop (motor 29.8.2, WSL2). La salida completa de cada comando está en [`docs/evidencias/salidas-docker.txt`](docs/evidencias/salidas-docker.txt), y las capturas de pantalla al final de esta sección.
 
 ### Cómo obtener la evidencia de Docker
 
@@ -350,28 +350,31 @@ Interpretación:
 
 ### Capturas
 
-Guarde cada captura en `docs/evidencias/` con el nombre indicado y sustituya la línea «Pendiente» por la imagen, por ejemplo `![docker stats](docs/evidencias/05-docker-stats.png)`.
+Capturas tomadas con la app ejecutándose en el contenedor. El pie de las páginas muestra `gunicorn/26.2.0` y el equipo `0ec7277bef81 (contenedor Docker)`, el mismo ID que aparece en `docker stats`.
 
-| # | Qué debe verse | Archivo |
-|---|---|---|
-| 1 | Conversión válida: `FF` en base 16 → 255, `11111111`, 377 | `docs/evidencias/01-conversion-valida.png` |
-| 2 | Error de validación (por ejemplo `-5` o `12` en base 2) | `docs/evidencias/02-error-validacion.png` |
-| 3 | Texto «Año»: 3 caracteres, 4 bytes, `ñ` → U+00F1, `C3 B1` | `docs/evidencias/03-texto-ano.png` |
-| 4 | Ejecución de las pruebas (`OK`) | `docs/evidencias/04-pruebas.png` |
-| 5 | `docker stats --no-stream` con el límite de 256MiB | `docs/evidencias/05-docker-stats.png` |
-| 6 | `docker compose ps` con el contenedor en estado `healthy` | `docs/evidencias/06-compose-ps.png` |
+**1. Conversión válida.** `FF` en base 16 → 255, `11111111`, 377 y FF; 8 bits significativos, 1 byte y el desarrollo posicional `15×16¹ + 15×16⁰ = 255`.
 
-**1. Conversión válida:** Pendiente.
+![Conversión válida de FF en base 16](docs/evidencias/01-conversion-valida.png)
 
-**2. Error de validación:** Pendiente.
+**2. Error de validación.** `12` en base 2: «"2" no es un dígito válido en base 2 (binario). Use solo dígitos 0 y 1.» No se muestra ningún resultado.
 
-**3. Texto con ñ:** Pendiente.
+![Error de dígito inválido para la base 2](docs/evidencias/02-error-validacion.png)
 
-**4. Pruebas:** Pendiente.
+**3. Texto con ñ.** «Año»: 3 caracteres y 4 bytes en UTF-8; la `ñ` es 241, `U+00F1`, `0xF1` y en UTF-8 `C3 B1` (2 bytes).
 
-**5. docker stats:** Pendiente.
+![Análisis UTF-8 del texto Año](docs/evidencias/03-texto-ano.png)
 
-**6. docker compose ps:** Pendiente.
+**4. Pruebas dentro del contenedor.** `docker compose exec web python manage.py test` → `Ran 38 tests`, `OK`.
+
+![38 pruebas superadas dentro del contenedor](docs/evidencias/04-pruebas.png)
+
+**5. `docker stats --no-stream`.** `92.12MiB / 256MiB` (36 % del límite), CPU 0.01 % en reposo y 3 procesos.
+
+![docker stats con el límite de 256MiB](docs/evidencias/05-docker-stats.png)
+
+**6. `docker compose ps`.** El contenedor está `Up 26 minutes (healthy)` y publica el puerto `0.0.0.0:8000->8000/tcp`.
+
+![docker compose ps con el contenedor en estado healthy](docs/evidencias/06-compose-ps.png)
 
 ## 7. Arquitectura de Von Neumann en la app
 
