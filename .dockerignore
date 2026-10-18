@@ -1,0 +1,29 @@
+# Entornos y cachés de Python
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Archivos generados: se crean dentro de la imagen
+staticfiles/
+db.sqlite3
+
+# Control de versiones, editores y configuración local
+.git/
+.gitignore
+.vscode/
+.idea/
+.claude/
+.env
+*.log
+
+# Docker y documentación: no hacen falta dentro de la imagen
+Dockerfile
+compose.yaml
+.dockerignore
+README.md
+docs/

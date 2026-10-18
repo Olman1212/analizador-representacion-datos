@@ -1,0 +1,29 @@
+name: analizador-datos
+
+services:
+  web:
+    build: .
+    image: analizador-datos:1.0
+    container_name: analizador-datos
+    ports:
+      - "8000:8000"
+    environment:
+      DJANGO_DEBUG: "0"
+      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1"
+      # Cambie la clave con una variable de entorno o un archivo .env.
+      DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:-cambie-esta-clave-en-produccion}"
+    restart: unless-stopped
+
+    # Límites de recursos (cgroups): 256 MB de RAM y 1 CPU.
+    # «deploy.resources.limits» es la forma de la especificación Compose;
+    # mem_limit/cpus son la forma clásica. Ambas dicen lo mismo y
+    # «docker compose» comprueba que coincidan.
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 256M
+    mem_limit: 256m
+    cpus: 1.0
+    # Igual al límite de memoria: el contenedor no puede usar swap extra.
+    memswap_limit: 256m

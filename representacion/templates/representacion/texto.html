@@ -1,0 +1,110 @@
+{% extends "representacion/base.html" %}
+
+{% block titulo %}Caracteres y UTF-8{% endblock %}
+
+{% block contenido %}
+<section class="tarjeta">
+  <h1>Análisis de caracteres</h1>
+  <p class="ayuda">Escriba un texto de hasta 20 caracteres. Para cada carácter se muestran su código (<code>ord</code>),
+    su punto de código Unicode y los bytes con los que se guarda en UTF-8.</p>
+
+  <form method="get" action="{% url 'representacion:texto' %}" novalidate>
+    <div class="campo{% if formulario.texto.errors %} con-error{% endif %}">
+      <label for="{{ formulario.texto.id_for_label }}">{{ formulario.texto.label }}</label>
+      {{ formulario.texto }}
+      {% for error in formulario.texto.errors %}
+        <p class="mensaje-error" role="alert">{{ error }}</p>
+      {% endfor %}
+    </div>
+    <button type="submit" class="boton">Analizar</button>
+  </form>
+
+  <div class="ejemplos">
+    <span class="ejemplos-titulo">Pruebe con:</span>
+    {% for ejemplo in ejemplos %}
+      <a class="ejemplo" href="?texto={{ ejemplo|urlencode }}"><code>{{ ejemplo }}</code></a>
+    {% endfor %}
+  </div>
+</section>
+
+{% if resultado %}
+<section class="tarjeta resultado" aria-labelledby="titulo-resultado">
+  <h2 id="titulo-resultado">Resultado</h2>
+
+  <ul class="metricas">
+    <li><span class="cifra">{{ resultado.total_caracteres }}</span> {{ resultado.total_caracteres|pluralize:"carácter,caracteres" }}</li>
+    <li><span class="cifra">{{ resultado.total_bytes }}</span> byte{{ resultado.total_bytes|pluralize }} en UTF-8</li>
+    <li>{% if resultado.es_ascii %}Solo ASCII: 1 byte por carácter{% else %}Incluye caracteres fuera de ASCII{% endif %}</li>
+  </ul>
+
+  <pre class="consola" aria-label="Equivalente en la consola de Python"><code>&gt;&gt;&gt; texto = {{ resultado.literal_python }}
+&gt;&gt;&gt; len(texto)
+{{ resultado.total_caracteres }}
+&gt;&gt;&gt; texto.encode("utf-8")
+{{ resultado.literal_bytes }}
+&gt;&gt;&gt; len(texto.encode("utf-8"))
+{{ resultado.total_bytes }}</code></pre>
+
+  <div class="tabla-desplazable">
+    <table class="tabla">
+      <thead>
+        <tr>
+          <th scope="col">#</th>
+          <th scope="col">Carácter</th>
+          <th scope="col">Decimal (ord)</th>
+          <th scope="col">Punto de código</th>
+          <th scope="col">Hexadecimal</th>
+          <th scope="col">Bytes UTF-8</th>
+          <th scope="col">N.º de bytes</th>
+          <th scope="col">Bits UTF-8</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for info in resultado.caracteres %}
+          <tr{% if info.num_bytes > 1 %} class="multibyte"{% endif %}>
+            <td>{{ forloop.counter }}</td>
+            <td class="caracter">{{ info.visible }}</td>
+            <td><code>{{ info.codigo }}</code></td>
+            <td><code>{{ info.punto_codigo }}</code></td>
+            <td><code>{{ info.hexadecimal }}</code></td>
+            <td><code>{{ info.utf8_hex }}</code></td>
+            <td>{{ info.num_bytes }}</td>
+            <td><code class="bits-utf8">{{ info.utf8_binario }}</code></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <th scope="row" colspan="5">Total</th>
+          <td><code>{{ resultado.utf8_hex }}</code></td>
+          <td>{{ resultado.total_bytes }}</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <details class="explicacion">
+    <summary>¿Por qué unos caracteres ocupan más bytes que otros?</summary>
+    <p>UTF-8 es una codificación de longitud variable: cuanto mayor es el punto de código, más bytes usa.
+      Los bits de cabecera de cada byte indican cuántos bytes forman el carácter.</p>
+    <div class="tabla-desplazable">
+      <table class="tabla">
+        <thead>
+          <tr><th scope="col">Puntos de código</th><th scope="col">Bytes</th><th scope="col">Patrón de bits</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>U+0000 – U+007F</code></td><td>1</td><td><code>0xxxxxxx</code></td></tr>
+          <tr><td><code>U+0080 – U+07FF</code></td><td>2</td><td><code>110xxxxx 10xxxxxx</code></td></tr>
+          <tr><td><code>U+0800 – U+FFFF</code></td><td>3</td><td><code>1110xxxx 10xxxxxx 10xxxxxx</code></td></tr>
+          <tr><td><code>U+10000 – U+10FFFF</code></td><td>4</td><td><code>11110xxx 10xxxxxx 10xxxxxx 10xxxxxx</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Ejemplo: <code>ñ</code> es U+00F1 = <code>000 1111 0001</code> en 11 bits. Se reparte en
+      <code>110<b>00011</b> 10<b>110001</b></code> = <code>C3 B1</code>. Por eso <code>len("Año")</code> es 3,
+      pero el texto ocupa 4 bytes.</p>
+  </details>
+</section>
+{% endif %}
+{% endblock %}

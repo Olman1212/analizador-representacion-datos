@@ -1,0 +1,39 @@
+{% load static %}<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}{% endblock %} · Analizador de representación de datos</title>
+  <link rel="icon" href="{% static 'representacion/favicon.svg' %}" type="image/svg+xml">
+  <link rel="stylesheet" href="{% static 'representacion/estilos.css' %}">
+</head>
+<body>
+  <header class="cabecera">
+    <div class="contenedor cabecera-interior">
+      <a class="marca" href="{% url 'representacion:numeros' %}">
+        <span class="logo" aria-hidden="true">01</span>
+        <span>Analizador de representación de datos</span>
+      </a>
+      {% url 'representacion:numeros' as url_numeros %}
+      {% url 'representacion:texto' as url_texto %}
+      <nav class="navegacion" aria-label="Secciones">
+        <a href="{{ url_numeros }}"{% if request.path == url_numeros %} aria-current="page"{% endif %}>Sistemas numéricos</a>
+        <a href="{{ url_texto }}"{% if request.path == url_texto %} aria-current="page"{% endif %}>Caracteres y UTF-8</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="contenedor">
+    {% block contenido %}{% endblock %}
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor">
+      <span>Python {{ entorno.python }}</span>
+      <span>Django {{ entorno.django }}</span>
+      <span>Servidor: {{ entorno.servidor }}</span>
+      <span>Equipo: {{ entorno.equipo }}{% if entorno.en_contenedor %} (contenedor Docker){% endif %}</span>
+    </div>
+  </footer>
+</body>
+</html>

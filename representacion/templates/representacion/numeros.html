@@ -1,0 +1,102 @@
+{% extends "representacion/base.html" %}
+
+{% block titulo %}Sistemas numéricos{% endblock %}
+
+{% block contenido %}
+<section class="tarjeta">
+  <h1>Conversión entre bases</h1>
+  <p class="ayuda">Escriba un entero sin signo entre 0 y 65&nbsp;535 (16 bits) y elija la base en la que está escrito.
+    Se admiten los prefijos <code>0b</code>, <code>0o</code> y <code>0x</code>, y espacios o <code>_</code> para agrupar dígitos.</p>
+
+  <form method="get" action="{% url 'representacion:numeros' %}" novalidate>
+    <div class="campo{% if formulario.numero.errors %} con-error{% endif %}">
+      <label for="{{ formulario.numero.id_for_label }}">{{ formulario.numero.label }}</label>
+      {{ formulario.numero }}
+      {% for error in formulario.numero.errors %}
+        <p class="mensaje-error" role="alert">{{ error }}</p>
+      {% endfor %}
+    </div>
+
+    <fieldset class="campo{% if formulario.base.errors %} con-error{% endif %}">
+      <legend>{{ formulario.base.label }}</legend>
+      <div class="opciones">
+        {% for opcion in formulario.base %}
+          <label class="opcion" for="{{ opcion.id_for_label }}">{{ opcion.tag }}<span>{{ opcion.choice_label }}</span></label>
+        {% endfor %}
+      </div>
+      {% for error in formulario.base.errors %}
+        <p class="mensaje-error" role="alert">{{ error }}</p>
+      {% endfor %}
+    </fieldset>
+
+    <button type="submit" class="boton">Convertir</button>
+  </form>
+
+  <div class="ejemplos">
+    <span class="ejemplos-titulo">Pruebe con:</span>
+    {% for ejemplo in ejemplos %}
+      <a class="ejemplo{% if not ejemplo.valido %} ejemplo-error{% endif %}"
+         href="?numero={{ ejemplo.numero|urlencode }}&amp;base={{ ejemplo.base }}"
+         title="{% if ejemplo.valido %}Conversión válida{% else %}Provoca un error de validación{% endif %}">
+        <code>{{ ejemplo.numero }}</code><sub>{{ ejemplo.base }}</sub>
+      </a>
+    {% endfor %}
+  </div>
+</section>
+
+{% if resultado %}
+<section class="tarjeta resultado" aria-labelledby="titulo-resultado">
+  <h2 id="titulo-resultado">Resultado</h2>
+  <p class="resumen">
+    <code>{{ resultado.entrada }}</code> en base {{ resultado.base_origen }} ({{ resultado.nombre_base }})
+    = <strong>{{ resultado.decimal }}</strong> en decimal
+  </p>
+
+  <dl class="bases">
+    <div class="base-fila">
+      <dt>Decimal <span>base 10</span></dt>
+      <dd><code>{{ resultado.decimal }}</code></dd>
+    </div>
+    <div class="base-fila">
+      <dt>Binario <span>base 2, relleno a {{ resultado.bits_totales }} bits</span></dt>
+      <dd><code>{{ resultado.binario_agrupado }}</code></dd>
+    </div>
+    <div class="base-fila">
+      <dt>Octal <span>base 8</span></dt>
+      <dd><code>{{ resultado.octal }}</code></dd>
+    </div>
+    <div class="base-fila">
+      <dt>Hexadecimal <span>base 16</span></dt>
+      <dd><code>{{ resultado.hexadecimal }}</code></dd>
+    </div>
+  </dl>
+
+  <ul class="metricas">
+    <li><span class="cifra">{{ resultado.bits_significativos }}</span> bits significativos</li>
+    <li><span class="cifra">{{ resultado.bytes_necesarios }}</span> byte{{ resultado.bytes_necesarios|pluralize }} necesario{{ resultado.bytes_necesarios|pluralize }}</li>
+    <li><span class="cifra">{{ resultado.bits_relleno }}</span> bit{{ resultado.bits_relleno|pluralize }} de relleno</li>
+  </ul>
+
+  <h3>Ajuste a bytes</h3>
+  <p class="ayuda">El binario se completa con ceros a la izquierda hasta el siguiente múltiplo de 8 bits.</p>
+  <div class="bytes">
+    {% for byte in resultado.bytes_detalle %}
+      <figure class="byte">
+        <div class="bits">{% for bit, relleno in byte.bits %}<span class="bit{% if relleno %} relleno{% endif %}">{{ bit }}</span>{% endfor %}</div>
+        <figcaption>Byte {{ forloop.counter }} · <code>0x{{ byte.hex }}</code></figcaption>
+      </figure>
+    {% endfor %}
+  </div>
+  <p class="leyenda">
+    <span class="bit muestra">1</span> bit significativo
+    <span class="bit relleno muestra">0</span> cero de relleno
+  </p>
+
+  <h3>Desarrollo posicional</h3>
+  <p class="formula">
+    {% for termino in resultado.desarrollo_posicional %}{{ termino.valor_digito }}×{{ resultado.base_origen }}<sup>{{ termino.exponente }}</sup>{% if not forloop.last %} + {% endif %}{% empty %}0{% endfor %}
+    = <strong>{{ resultado.decimal }}</strong>
+  </p>
+</section>
+{% endif %}
+{% endblock %}
